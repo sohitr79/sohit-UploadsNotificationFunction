@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'UploadsNotificationFunction - A SAM template to handle SQS events and
+  publish to SNS
+
+  '
+Globals:
+  Function:
+    Timeout: 20
+    MemorySize: 512
+    LoggingConfig:
+      LogFormat: JSON
+    Architectures:
+    - x86_64
+Resources:
+  UploadsNotificationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.example.aws.lambda.UploadsNotificationHandler::handleRequest
+      Runtime: java17
+      CodeUri: s3://sohit-rajput-web/7c9f41e061cea89980e9cd07a68518bc
+      Policies:
+      - AWSLambdaBasicExecutionRole
+      - Statement:
+          Effect: Allow
+          Action:
+          - sns:Publish
+          - sqs:ReceiveMessage
+          - sqs:DeleteMessage
+          - sqs:GetQueueAttributes
+          Resource:
+          - Fn::GetAtt:
+            - NotificationQueue
+            - Arn
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue:
+              Fn::GetAtt:
+              - NotificationQueue
+              - Arn
+    Metadata:
+      SamResourceId: UploadsNotificationFunction
+  NotificationQueue:
+    Type: AWS::SQS::Queue
+    Metadata:
+      SamResourceId: NotificationQueue
+  UploadsNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Protocol: email
+        Endpoint: your-email@example.com
+    Metadata:
+      SamResourceId: UploadsNotificationTopic
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+    Metadata:
+      SamResourceId: ApplicationResourceGroup
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+    Metadata:
+      SamResourceId: ApplicationInsightsMonitoring
